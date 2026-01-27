@@ -7,6 +7,7 @@ from src.load_data import load_netflow_csv
 from src.prompt_builder import extract_observable_features, build_explanation_prompt
 from src.gpt_client import GPTClient
 from src.gemini_client import GeminiClient
+from src.md_writer import write_flow_md
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = PROJECT_ROOT / "data" / "raw" / "may_hamalka80-85.csv"
@@ -37,6 +38,12 @@ def explain_flows(rows: list[pd.Series]) -> list[dict]:
 
         print(f"\n--- FLOW {idx} MODEL EXPLANATION ---\n")
         print(explanation)
+
+        write_flow_md(
+            flow_id=observable["ID"],
+            features=observable,
+            explanation=explanation
+        )
 
         result = {
             "flow_index": idx,
