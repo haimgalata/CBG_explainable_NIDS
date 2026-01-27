@@ -55,23 +55,23 @@ def extract_observable_features(row: pd.Series) -> Dict[str, object]:
 import json
 
 def build_explanation_prompt(observable_features: dict) -> str:
-    """
-    Builds a structured prompt for GPT based only on observable NetFlow features.
-    The prompt asks for cautious, analytical explanation without conclusions.
-    """
     features_json = json.dumps(observable_features, indent=2)
 
     prompt = f"""
 You are a cybersecurity analyst.
 
-You are given observable network flow measurements.
+The following network flow was flagged as anomalous by an upstream
+detection system.
+This does NOT imply confirmed malicious activity.
+
+You are given observable network flow measurements only.
 Do NOT assume the flow is malicious or benign.
 Do NOT name any attack or classification.
 
 Your task:
 - Analyze the network behavior described by the features
-- Point out patterns that may be unusual or noteworthy
-- Explain possible reasons cautiously
+- Identify characteristics that may have contributed to the anomaly score
+- Explain possible reasons cautiously and factually
 - Avoid definitive conclusions
 
 Network flow features:
@@ -79,5 +79,4 @@ Network flow features:
 
 Provide a clear, structured explanation in plain English.
 """
-
     return prompt
