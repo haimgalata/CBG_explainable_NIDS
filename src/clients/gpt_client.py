@@ -1,16 +1,19 @@
 from openai import OpenAI
+from src.config import OPENAI_API_KEY
 
 
 class GPTClient:
-    def __init__(self):
-        self.client = OpenAI()
+    def __init__(self, model: str = "gpt-4o-mini", temperature: float = 0.3):
+        if not OPENAI_API_KEY:
+            raise RuntimeError("OPENAI_API_KEY is not set")
+
+        self.client = OpenAI(api_key=OPENAI_API_KEY)
+        self.model = model
+        self.temperature = temperature
 
     def explain(self, prompt: str) -> str:
-        """
-        Sends a prompt to OpenAI and returns the explanation text.
-        """
         response = self.client.chat.completions.create(
-            model="gpt-4o-mini",
+            model=self.model,
             messages=[
                 {
                     "role": "system",
@@ -21,7 +24,7 @@ class GPTClient:
                     "content": prompt
                 }
             ],
-            temperature=0.3
+            temperature=self.temperature
         )
 
         return response.choices[0].message.content
