@@ -12,9 +12,9 @@ class GPTClient:
         self.temperature = temperature
 
     def explain(self, prompt: str) -> str:
-        response = self.client.chat.completions.create(
+        response = self.client.responses.create(
             model=self.model,
-            messages=[
+            input=[
                 {
                     "role": "system",
                     "content": "You are a cybersecurity analyst."
@@ -27,4 +27,4 @@ class GPTClient:
             temperature=self.temperature
         )
 
-        return response.choices[0].message.content
+        return response.output_text
