@@ -3,8 +3,6 @@ import pandas as pd
 import numpy as np
 import json
 
-# עמודות שמותר לשלוח ל-GPT
-# כולל כל התצפיות, ללא עמודות תוצאה / החלטה
 ALLOWED_FEATURES = [
     "ID",
     "IP_SRC_ADDR",
@@ -52,35 +50,18 @@ def extract_observable_features(row: pd.Series) -> Dict[str, object]:
 
     return observable_data
 
-
-def build_explanation_prompt(
-    observable_features: dict,
-    ipqs_fraud_score: int | None = None,
-    vt_malicious_count: int | None = None
-) -> str:
+# -------------------------------------------------
+# Layer 1 – Basic Prompt (Raw only)
+# -------------------------------------------------
+def build_basic_prompt(observable_features: dict) -> str:
 
     features_json = json.dumps(observable_features, indent=2)
 
-    external_context = ""
-
-    if ipqs_fraud_score is not None or vt_malicious_count is not None:
-        external_context = f"""
-        External IP reputation signals (context only, not definitive evidence):
-        - IPQualityScore fraud score: {ipqs_fraud_score}
-        - VirusTotal malicious detections: {vt_malicious_count}
-        """
-
-    prompt = f"""
+    return f"""
 You are a cybersecurity analyst.
 
 The following network flow was flagged as anomalous by an automated detection system.
 This does NOT imply confirmed malicious activity.
-
-Note:
-Some features originate from external IP reputation services (e.g., VirusTotal, IPQualityScore).
-These signals are contextual and probabilistic, and do NOT constitute definitive evidence of malicious activity.
-
-{external_context}
 
 You are provided with observable network flow features only.
 Do NOT assume the traffic is malicious or benign.
@@ -103,7 +84,8 @@ Respond in the following structure only:
    State whether the behavior shows **no resemblance or only weak resemblance**
    to any general attack category.
    Only name a category if the resemblance is strong and unambiguous.
-   Otherwise, explicitly state: "Insufficient evidence to suggest a known attack pattern."
+   Otherwise, explicitly state:
+   "Insufficient evidence to suggest a known attack pattern."
 
 5. Most informative feature:
    Name the single most informative feature or observation.
@@ -119,6 +101,74 @@ Important constraints:
 Network flow features:
 {features_json}
 """
-    return prompt
+
+# -------------------------------------------------
+# Layer 2 – Enriched Prompt
+# -------------------------------------------------
+def build_enriched_prompt(
+    observable_features: dict,
+    ipqs_fraud_score: int | None,
+    vt_malicious_count: int | None
+) -> str:
+
+    features_json = json.dumps(observable_features, indent=2)
+
+    external_context = f"""
+Note:
+Some features originate from external IP reputation services (e.g., VirusTotal, IPQualityScore).
+These signals are contextual and probabilistic, and do NOT constitute definitive evidence of malicious activity.
+
+External IP reputation signals:
+- IPQualityScore fraud score: {ipqs_fraud_score}
+- VirusTotal malicious detections: {vt_malicious_count}
+"""
+
+    return f"""
+You are a cybersecurity analyst.
+
+The following network flow was flagged as anomalous by an automated detection system.
+This does NOT imply confirmed malicious activity.
+
+{external_context}
+
+You are provided with observable network flow features.
+Do NOT assume the traffic is malicious or benign.
+
+Your task is to provide a concise, cautious assessment.
+
+Respond in the following structure only:
+
+1. Likelihood (0–1):
+   A single numeric value.
+
+2. Main reasons:
+   2–3 short bullet points explaining the assessment.
+
+3. Suspicious feature combination:
+   Name a small group of features that are individually normal,
+   but suspicious when considered together.
+
+4. Resemblance to known attack behavior:
+   State whether the behavior shows **no resemblance or only weak resemblance**
+   to any general attack category.
+   Only name a category if the resemblance is strong and unambiguous.
+   Otherwise, explicitly state:
+   "Insufficient evidence to suggest a known attack pattern."
+
+5. Most informative feature:
+   Name the single most informative feature or observation.
+
+Important constraints:
+- Be concise
+- Do not use tables
+- Do not exceed 6 short bullet points total
+- Avoid definitive conclusions
+- Avoid naming specific attacks unless clearly justified
+- Prefer stating insufficient or weak evidence over naming an attack category
+
+Network flow features:
+{features_json}
+"""
+
 
 

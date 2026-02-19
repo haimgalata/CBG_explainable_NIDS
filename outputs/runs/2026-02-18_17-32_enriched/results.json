@@ -1,0 +1,32 @@
+[
+  {
+    "flow_index": 1,
+    "timestamp": "2026-02-18T17:32:34.679897",
+    "layer": "enriched",
+    "model": "GPTClient",
+    "llm_latency_seconds": 4.261,
+    "observable_features": {
+      "ID": 3473025,
+      "IP_SRC_ADDR": "84.15.180.57",
+      "IP_DST_ADDR": "193.219.88.36",
+      "L4_SRC_PORT": 0,
+      "L4_DST_PORT": 771,
+      "PROTOCOL_NUM": 1,
+      "FIRST_SWITCHED": "2020-01-31 15:38:50",
+      "LAST_SWITCHED": "2020-01-31 15:38:51",
+      "IN_PKTS": 3,
+      "IN_BYTES": 640,
+      "FLOW_DURATION_MILLISECONDS": 512.0,
+      "avg_in_packet_size": 213.3333333333333,
+      "inter_arrival_ms": 0.0,
+      "dst_flows_in_window": 13370,
+      "src_entropy_PROTOCOL": 0.205592508185083,
+      "src_IN_PKTS_sum": 33.0,
+      "src_flows_in_window": 31,
+      "src_flag_SYN": 0
+    },
+    "ipqs_fraud_score": null,
+    "vt_malicious_count": 0,
+    "explanation": "1. Likelihood (0–1):  \n   0.3\n\n2. Main reasons:  \n   - Low packet count (3 packets) and small byte size (640 bytes) suggest limited activity.  \n   - The source port is 0, which is atypical for standard traffic.  \n   - No SYN flags indicate a potential lack of traditional connection initiation.\n\n3. Suspicious feature combination:  \n   Source port 0, low packet count, and no SYN flags.\n\n4. Resemblance to known attack behavior:  \n   Insufficient evidence to suggest a known attack pattern.\n\n5. Most informative feature:  \n   Source port 0."
+  }
+]
