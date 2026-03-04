@@ -4,9 +4,9 @@ from pathlib import Path
 from datetime import datetime
 
 from src.load_data import load_netflow_csv
-from src.layers.baseline import run_basic_layer
-from src.layers.augmented import run_enriched_layer
-
+from src.layers.baseline import run_baseline_layer
+from src.layers.augmented import run_augmented_layer
+from src.layers.consensus import run_consensus_layer
 
 RUN_ID = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
@@ -24,8 +24,22 @@ def main():
         "--layer",
         type=str,
         required=True,
-        choices=["basic", "enriched"],
+        choices=["baseline", "augmented", "consensus"],
         help="Select which explanation layer to run"
+    )
+
+    parser.add_argument(
+        "--consensus_augmented",
+        action="store_true",
+        help="Enable CTI augmentation in consensus layer"
+    )
+
+    parser.add_argument(
+        "--mode",
+        type=str,
+        default="real",
+        choices=["real", "synthetic", "default"],
+        help="Reputation mode for augmented layer"
     )
 
     parser.add_argument(
@@ -45,7 +59,16 @@ def main():
     args = parser.parse_args()
 
     # ---- Create run directory BEFORE running layer ----
-    run_output_dir = BASE_OUTPUT_DIR / f"{RUN_ID}_{args.layer}"
+    # ---- Create run directory BEFORE running layer ----
+    if args.layer == "consensus" and args.consensus_augmented:
+        run_output_dir = BASE_OUTPUT_DIR / f"{RUN_ID}_{args.layer}_augmented_{args.mode}"
+
+    elif args.layer == "augmented":
+        run_output_dir = BASE_OUTPUT_DIR / f"{RUN_ID}_{args.layer}_{args.mode}"
+
+    else:
+        run_output_dir = BASE_OUTPUT_DIR / f"{RUN_ID}_{args.layer}"
+
     run_output_dir.mkdir(parents=True, exist_ok=True)
 
     # ---- Load data ----
@@ -53,15 +76,24 @@ def main():
     rows_to_explain = [df.iloc[i] for i in range(args.start, args.end)]
 
     print(f"\nRunning layer: {args.layer}")
+
+    if args.layer == "consensus":
+        print(f"Consensus augmentation: {args.consensus_augmented}")
+
+    print(f"Reputation mode: {args.mode}")
     print(f"Flows: {args.start} → {args.end - 1}")
     print(f"Run ID: {RUN_ID}\n")
 
     # ---- Layer dispatch ----
-    if args.layer == "basic":
-        results = run_basic_layer(rows_to_explain, run_output_dir)
+    if args.layer == "baseline":
+        results = run_baseline_layer(rows_to_explain, run_output_dir)
 
-    elif args.layer == "enriched":
-        results = run_enriched_layer(rows_to_explain, run_output_dir)
+
+    elif args.layer == "augmented":
+        results = run_augmented_layer(rows_to_explain, run_output_dir, reputation_mode=args.mode)
+
+    elif args.layer == "consensus":
+        results = run_consensus_layer(rows_to_explain, run_output_dir, use_augmentation=args.consensus_augmented, reputation_mode=args.mode)
 
     else:
         raise ValueError("Invalid layer selected")

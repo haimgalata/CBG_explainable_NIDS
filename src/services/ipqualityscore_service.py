@@ -1,5 +1,5 @@
 import requests
-from typing import Optional, Tuple
+from typing import Optional
 
 
 class IPQSASNScoreService:
@@ -18,7 +18,7 @@ class IPQSASNScoreService:
         self.api_key = api_key
         self.timeout = timeout
 
-    def lookup(self, ip: str) -> Optional[Tuple[int, int]]:
+    def get_fraud_score(self, ip: str) -> Optional[int]:
         """
         Query IPQualityScore and return (asn, fraud_score).
 
@@ -45,7 +45,7 @@ class IPQSASNScoreService:
             if asn is None or fraud_score is None:
                 return None
 
-            return asn, fraud_score
+            return fraud_score
 
         except requests.RequestException:
             return None

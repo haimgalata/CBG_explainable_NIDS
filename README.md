@@ -1,52 +1,96 @@
 # CBG Explainable NIDS
 
-Explainable Network Intrusion Detection using LLM-based reasoning.
+Explainable Network Intrusion Detection using LLM reasoning.
 
-The system supports two layers:
+---
 
-1. Basic – Uses raw NetFlow features only.
-2. Enriched – Uses NetFlow features + IP reputation signals (IPQualityScore, VirusTotal).
+## Layers
 
-------------------------------------------------------------
+- **baseline** – NetFlow features only  
+- **augmented** – NetFlow + IP reputation (IPQualityScore, VirusTotal, AbuseIPDB)  
+- **consensus** – Aggregated explanation from multiple LLM runs
+
+---
+
+## Activate Environment
+
+```
+.venv\Scripts\activate
+```
+
+---
 
 ## Run
 
-Activate environment:
+### Baseline
 
-.venv\Scripts\activate
+```
+python -m src.run_explanations --layer baseline --start 0 --end 5
+```
 
-Run Basic layer:
+### Augmented (real reputation)
 
-python -m src.run_explanations --layer basic --start 0 --end 5
+```
+python -m src.run_explanations --layer augmented --mode real --start 0 --end 5
+```
 
-Run Enriched layer:
+### Augmented (synthetic reputation)
 
-python -m src.run_explanations --layer enriched --start 0 --end 5
+```
+python -m src.run_explanations --layer augmented --mode synthetic --start 0 --end 5
+```
 
-------------------------------------------------------------
+### Augmented (default reputation)
 
-## Parameters
+```
+python -m src.run_explanations --layer augmented --mode default --start 0 --end 5
+```
+### Consensus
 
---layer   basic | enriched  
---start   start index  
---end     end index (exclusive)
+
+#### Parameters
+
+```
+--layer  baseline | augmented | consensus
+         default: baseline
+
+--start  start index (inclusive)
+         default: 0
+
+--end    end index (exclusive)
+         default: process until dataset end
+
+--mode   real | synthetic
+         default: real (augmented layer only)
+```
 
 Example:
 
-python -m src.run_explanations --layer enriched --start 100 --end 120
+```
+python -m src.run_explanations --layer consensus --mode synthetic --start 0 --end 5
 
-------------------------------------------------------------
+python -m src.run_explanations --layer consensus --consensus_augmented --mode real --start 0 --end 1 
+
+python -m src.run_explanations --layer consensus --consensus_augmented --mode synsynthetic  --start 0 --end 1
+
+python -m src.run_explanations --layer consensus --consensus_augmented --mode defulte  --start 0 --end 1     
+```
+
+---
 
 ## Output
 
-Each run creates:
+```
+outputs/runs/<RUN_ID>_<layer>_<mode>/
+```
 
-outputs/runs/<RUN_ID>_<layer>/
+Contains:
 
-Containing:
-- results.json
-- md/ (per-flow explanations)
+```
+results.json
+md/   (per-flow explanations)
+```
 
-------------------------------------------------------------
+---
 
 CBG Internship – Explainable NIDS

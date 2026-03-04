@@ -7,7 +7,8 @@ def write_flow_md(
     explanation: str,
     output_dir: Path,
     ipqs_fraud_score=None,
-    vt_malicious_count=None
+    vt_malicious_count=None,
+    abuse_score=None
 ):
     md_dir = output_dir / "md"
     md_dir.mkdir(parents=True, exist_ok=True)
@@ -27,7 +28,7 @@ def write_flow_md(
         # -------------------------
         # External Signals Section
         # -------------------------
-        if ipqs_fraud_score is not None or vt_malicious_count is not None:
+        if ipqs_fraud_score is not None or vt_malicious_count is not None or abuse_score is not None:
             f.write("\n## External Reputation Signals\n")
 
             if ipqs_fraud_score is not None:
@@ -35,6 +36,9 @@ def write_flow_md(
 
             if vt_malicious_count is not None:
                 f.write(f"- VirusTotal Malicious Count: {vt_malicious_count}\n")
+
+            if abuse_score is not None:
+                f.write(f"- AbuseIPDB Confidence Score: {abuse_score}\n")
 
         # -------------------------
         # LLM Analysis Section

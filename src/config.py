@@ -11,3 +11,4 @@ if not GEMINI_API_KEY and not OPENAI_API_KEY:
 
 IPQS_API_KEY = os.getenv("IPQS_API_KEY")
 VT_API_KEY = os.getenv("VT_API_KEY")
+ABUSE_IPDB_API_KEY = os.getenv("ABUSE_IPDB_API_KEY")
