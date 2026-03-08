@@ -7,6 +7,7 @@ from src.load_data import load_netflow_csv
 from src.layers.baseline import run_baseline_layer
 from src.layers.augmented import run_augmented_layer
 from src.layers.consensus import run_consensus_layer
+from src.services.evaluation_writer import append_results
 
 RUN_ID = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
@@ -103,6 +104,8 @@ def main():
 
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
+
+    append_results(results)
 
     print(f"\nResults saved to: {output_file}")
     print("Done.\n")

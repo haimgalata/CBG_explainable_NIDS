@@ -16,5 +16,6 @@ __pycache__/
 .DS_Store
 Thumbs.db
 
-# Raw data (do not upload sensitive data)
-data/raw/
+# Data and experiment outputs
+data/
+outputs/

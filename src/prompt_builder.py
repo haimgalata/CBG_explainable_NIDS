@@ -200,10 +200,18 @@ def extract_observable_features(row: pd.Series) -> Dict[str, object]:
     return observable_data
 
 import re
+
 def extract_llm_likelihood(text: str) -> float | None:
-    match = re.search(r'Likelihood.*?([0-9]*\.?[0-9]+)', text)
+
+    match = re.search(
+        r'Likelihood.*?\n\s*[*]*\s*([0-9]*\.?[0-9]+)',
+        text,
+        re.IGNORECASE
+    )
+
     if match:
         return float(match.group(1))
+
     return None
 
 # -------------------------------------------------
@@ -392,7 +400,8 @@ The autoencoder score indicates how anomalous the flow is according to an unsupe
 
 Respond strictly:
 
-1. Likelihood (0–1) that the flow is malicious
+1. Likelihood (0–1):
+   A single numeric value.
 2. Main reasons (2–3 bullet points)
 3. Most informative feature
 
@@ -440,6 +449,7 @@ Be concise.
 Respond strictly in this structure:
 
 1. Likelihood (0–1) – likelihood that the flow is malicious
+   A single numeric value.
 2. Main reasons (2–3 bullet points)
 3. Most informative feature
 
@@ -480,7 +490,8 @@ Prefer reasoning that is strictly feature-based.
 
 Respond strictly in this structure:
 
-1. Final likelihood (0–1)
+1. Likelihood (0–1).
+   A single numeric value.
 2. Which expert is more convincing (A or B or Balanced)
 3. Key justification (2–3 bullet points)
 4. Most decisive feature
