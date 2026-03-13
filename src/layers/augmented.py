@@ -1,7 +1,7 @@
 import time
 from datetime import datetime
 
-from src.prompt_builder import extract_observable_features, build_augmented_prompt, extract_llm_likelihood, count_llm_tokens
+from src.prompt_builder import extract_observable_features, build_augmented_prompt
 from src.clients.gpt_client import GPTClient
 from src.clients.gemini_client import GeminiClient
 from src.services.ipqualityscore_service import IPQSASNScoreService
@@ -10,7 +10,7 @@ from src.services.abuseipdb_service import AbuseIPDBService
 from src.services.synthetic_reputation import generate_random_attack_profile
 from src.config import IPQS_API_KEY, VT_API_KEY, ABUSE_IPDB_API_KEY
 from src.md_writer import write_flow_md
-
+from src.utils.llm_utils import extract_llm_likelihood, count_llm_tokens
 
 def run_augmented_layer(rows, run_output_dir, reputation_mode):
     #llm = GeminiClient()
@@ -24,10 +24,9 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
     results = []
 
     for idx, row in enumerate(rows, start=1):
+
         observable = extract_observable_features(row)
-
         dst_ip = row["IP_DST_ADDR"]
-
 
         # ---- External enrichment ----
         if reputation_mode == "real":
@@ -36,26 +35,13 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
             vt_malicious_count = vt_service.get_malicious_count(dst_ip)
             abuse_score = abuse_service.get_abuse_score(dst_ip)
 
-            if any([
-                ipqs_fraud_score,
-                vt_malicious_count,
-                abuse_score
-            ]):
-                ip_reputation_found = 1
-            else:
-                ip_reputation_found = 0
-
-
         elif reputation_mode == "synthetic":
 
             profile = generate_random_attack_profile()
 
-            abuse_score = profile["abuse_score"]
-            vt_malicious_count = profile["vt_malicious_count"]
             ipqs_fraud_score = profile["ipqs_fraud_score"]
-
-            ip_reputation_found = 1
-
+            vt_malicious_count = profile["vt_malicious_count"]
+            abuse_score = profile["abuse_score"]
 
         elif reputation_mode == "default":
 
@@ -64,7 +50,12 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
             vt_malicious_count = 0
             abuse_score = 0
 
-            ip_reputation_found = 0
+        # ---- Reputation flag ----
+        ip_reputation_found = int(any([
+            ipqs_fraud_score,
+            vt_malicious_count,
+            abuse_score
+        ]))
 
         # ---- Build enriched prompt ----
         prompt = build_augmented_prompt(

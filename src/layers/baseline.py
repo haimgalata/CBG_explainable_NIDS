@@ -1,11 +1,10 @@
 import time
 from datetime import datetime
-
-from src.prompt_builder import extract_observable_features, build_basic_prompt, extract_llm_likelihood, count_llm_tokens
+from src.prompt_builder import extract_observable_features, build_basic_prompt
 from src.clients.gpt_client import GPTClient
 from src.clients.gemini_client import GeminiClient
 from src.md_writer import write_flow_md
-
+from src.utils.llm_utils import extract_llm_likelihood, count_llm_tokens
 
 def run_baseline_layer(rows, run_output_dir):
     #llm = GeminiClient()

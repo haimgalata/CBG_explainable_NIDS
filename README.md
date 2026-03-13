@@ -11,101 +11,131 @@ Baseline → Augmented → Consensus
 ## Layers
 
 - **baseline** – NetFlow features only  
-- **augmented** – NetFlow + IP reputation (IPQualityScore, VirusTotal, AbuseIPDB)  
-- **consensus** – Aggregated explanation from multiple LLM runs
+- **augmented** – NetFlow + external context (IP reputation + Autoencoder score)  
+- **consensus** – Expert debate + judge decision
 
 ---
 
 ## Activate Environment
 
-```
+```bash
 .venv\Scripts\activate
 ```
 
 ---
 
-# Run
+## Run
+
+If no row range is provided, the system runs on the default flow **(row 397)**.
+
+---
 
 ## Baseline
 
+```bash
+python -m src.run_explanations --layer baseline
 ```
-python -m src.run_explanations --layer baseline --start 0 --end 5
+
+Specific row:
+
+```bash
+python -m src.run_explanations --layer baseline --start 260 --end 261
 ```
 
 ---
 
 ## Augmented
 
-### Real reputation
+Default mode (CTI values = 0)
 
-```
-python -m src.run_explanations --layer augmented --mode real --start 0 --end 5
-```
-
-### Synthetic reputation
-
-```
-python -m src.run_explanations --layer augmented --mode synthetic --start 0 --end 5
+```bash
+python -m src.run_explanations --layer augmented
 ```
 
-### Default reputation (all CTI values = 0)
+Real CTI
 
-```
-python -m src.run_explanations --layer augmented --mode default --start 0 --end 5
-```
-
----
-
-# Consensus
-
-### Consensus from baseline runs
-
-```
-python -m src.run_explanations --layer consensus --start 0 --end 5
+```bash
+python -m src.run_explanations --layer augmented --mode real
 ```
 
-### Consensus from augmented runs (real CTI)
+Synthetic CTI
 
-```
-python -m src.run_explanations --layer consensus --consensus_augmented --mode real --start 0 --end 5
-```
-
-### Consensus from augmented runs (synthetic CTI)
-
-```
-python -m src.run_explanations --layer consensus --consensus_augmented --mode synthetic --start 0 --end 5
+```bash
+python -m src.run_explanations --layer augmented --mode synthetic
 ```
 
-### Consensus from augmented runs (default CTI)
+Specific row
 
-```
-python -m src.run_explanations --layer consensus --consensus_augmented --mode default --start 0 --end 5
+```bash
+python -m src.run_explanations --layer augmented --start 260 --end 261
 ```
 
 ---
 
-# Parameters
+## Consensus
 
+Consensus from baseline experts
+
+```bash
+python -m src.run_explanations --layer consensus
 ```
---layer  baseline | augmented | consensus
-         default: baseline
 
---start  start index (inclusive)
-         default: 0
+Consensus with augmented context (CTI = 0)
 
---end    end index (exclusive)
-         default: until dataset end
+```bash
+python -m src.run_explanations --layer consensus --consensus_mode augmented
+```
 
---mode   real | synthetic | default
-         default: real (augmented layer only)
+Consensus with real CTI
+
+```bash
+python -m src.run_explanations --layer consensus --consensus_mode augmented --mode real
+```
+
+Consensus with synthetic CTI
+
+```bash
+python -m src.run_explanations --layer consensus --consensus_mode augmented --mode synthetic
+```
+
+Specific row
+
+```bash
+python -m src.run_explanations --layer consensus --start 260 --end 261
 ```
 
 ---
 
-# Output
+## Parameters
 
 ```
-outputs/runs/<RUN_ID>_<layer>_<mode>/
+--layer
+baseline | augmented | consensus
+(required)
+
+--consensus_mode
+baseline | augmented
+(default: baseline)
+
+--mode
+real | synthetic | default
+(default: default)
+
+--start
+start index in dataset
+(default: 397)
+
+--end
+end index (exclusive)
+(default: 398)
+```
+
+---
+
+## Output
+
+```
+outputs/runs/<RUN_ID>_<layer>/
 ```
 
 Each run contains:
@@ -116,12 +146,17 @@ md/   (per-flow explanations)
 ```
 
 ---
+---
 
-# Future Work
+## TODO
 
-- [ ] Create evaluation CSV (ID, Actual_Label, LLM_Prediction, Label, IP_Reputation_Found, Latency, Tokens, Length)
-- [ ] Run two experiments per flow: synthetic CTI and default CTI (all zeros)
+- [x] Create evaluation CSV  
+      (ID, Actual_Label, LLM_Prediction, Label, IP_Reputation_Found, Latency, Tokens, Length)
+
 - [ ] Review DDoS article and update synthetic CTI generation logic
+
+- [ ] Connect the explanation pipeline to the previous stage of the project  
+      (anomaly detection / NetFlow detection pipeline)
 
 ---
 

@@ -30,15 +30,17 @@ def main():
     )
 
     parser.add_argument(
-        "--consensus_augmented",
-        action="store_true",
-        help="Enable CTI augmentation in consensus layer"
+        "--consensus_mode",
+        type=str,
+        default="baseline",
+        choices=["baseline", "augmented"],
+        help="Consensus mode: baseline or augmented"
     )
 
     parser.add_argument(
         "--mode",
         type=str,
-        default="real",
+        default="default",
         choices=["real", "synthetic", "default"],
         help="Reputation mode for augmented layer"
     )
@@ -60,9 +62,12 @@ def main():
     args = parser.parse_args()
 
     # ---- Create run directory BEFORE running layer ----
-    # ---- Create run directory BEFORE running layer ----
-    if args.layer == "consensus" and args.consensus_augmented:
-        run_output_dir = BASE_OUTPUT_DIR / f"{RUN_ID}_{args.layer}_augmented_{args.mode}"
+    if args.layer == "consensus":
+
+        if args.consensus_mode == "augmented":
+            run_output_dir = BASE_OUTPUT_DIR / f"{RUN_ID}_consensus_augmented_{args.mode}"
+        else:
+            run_output_dir = BASE_OUTPUT_DIR / f"{RUN_ID}_consensus_baseline"
 
     elif args.layer == "augmented":
         run_output_dir = BASE_OUTPUT_DIR / f"{RUN_ID}_{args.layer}_{args.mode}"
@@ -79,7 +84,7 @@ def main():
     print(f"\nRunning layer: {args.layer}")
 
     if args.layer == "consensus":
-        print(f"Consensus augmentation: {args.consensus_augmented}")
+        print(f"Consensus mode: {args.consensus_mode}")
 
     print(f"Reputation mode: {args.mode}")
     print(f"Flows: {args.start} → {args.end - 1}")
@@ -89,12 +94,11 @@ def main():
     if args.layer == "baseline":
         results = run_baseline_layer(rows_to_explain, run_output_dir)
 
-
     elif args.layer == "augmented":
         results = run_augmented_layer(rows_to_explain, run_output_dir, reputation_mode=args.mode)
 
     elif args.layer == "consensus":
-        results = run_consensus_layer(rows_to_explain, run_output_dir, use_augmentation=args.consensus_augmented, reputation_mode=args.mode)
+        results = run_consensus_layer(rows_to_explain, run_output_dir, use_augmentation=(args.consensus_mode == "augmented"), reputation_mode=args.mode)
 
     else:
         raise ValueError("Invalid layer selected")
@@ -105,7 +109,16 @@ def main():
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
-    append_results(results)
+    # Determine experiment layer label
+    if args.layer == "consensus":
+        if args.consensus_mode == "baseline":
+            experiment_layer = "consensus_baseline"
+        else:
+            experiment_layer = "consensus_augmented"
+    else:
+        experiment_layer = args.layer
+
+    append_results(results, rows_to_explain, experiment_layer, args.mode)
 
     print(f"\nResults saved to: {output_file}")
     print("Done.\n")

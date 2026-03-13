@@ -199,261 +199,167 @@ def extract_observable_features(row: pd.Series) -> Dict[str, object]:
 
     return observable_data
 
-import re
-
-def extract_llm_likelihood(text: str) -> float | None:
-
-    match = re.search(
-        r'Likelihood.*?\n\s*[*]*\s*([0-9]*\.?[0-9]+)',
-        text,
-        re.IGNORECASE
-    )
-
-    if match:
-        return float(match.group(1))
-
-    return None
-
 # -------------------------------------------------
-# Layer 1 – Basic Prompt (Raw only)
+# Layer 1 – Basic Prompt OR Expert Basic Prompt
 # -------------------------------------------------
-def build_basic_prompt(observable_features: dict) -> str:
+def build_basic_prompt(
+    observable_features: dict,
+    assumption: str | None = None
+) -> str:
 
     features_json = json.dumps(observable_features, indent=2)
 
+    if assumption == "malicious":
+        assumption_text = """
+Assume the network flow is malicious.
+Your task is to construct the strongest possible explanation supporting this hypothesis based only on the observable features.
+"""
+    elif assumption == "benign":
+        assumption_text = """
+Assume the network flow is benign.
+Your task is to construct the strongest possible explanation supporting this hypothesis based only on the observable features.
+"""
+    else:
+        assumption_text = ""
+
+    if assumption is None:
+        neutrality_text = "Do not assume the traffic is malicious or benign."
+    else:
+        neutrality_text = ""
+
     return f"""
-You are a cybersecurity analyst.
+You are a cybersecurity analyst reviewing a network flow.
 
-The following network flow was flagged as anomalous by an automated detection system.
-This does NOT imply confirmed malicious activity.
+{assumption_text}
 
-You are provided with observable network flow features only.
-Do NOT assume the traffic is malicious or benign.
+The flow was flagged as anomalous by an automated system, but this does NOT imply confirmed malicious activity.
 
-Your task is to provide a concise, cautious assessment.
+You are given only observable NetFlow features.
+{neutrality_text}
 
-Respond in the following structure only:
+Respond ONLY in the following structure:
 
-1. Likelihood (0–1):
-   A single numeric value.
+1. Malicious likelihood (0–1):
+A single numeric value.
 
 2. Main reasons:
-   2–3 short bullet points explaining the assessment.
+2–3 short bullet points explaining the assessment.
 
 3. Suspicious feature combination:
-   Name a small group of features that are individually normal,
-   but suspicious when considered together.
+Features that are individually normal but suspicious together.
 
 4. Resemblance to known attack behavior:
-   State whether the behavior shows **no resemblance or only weak resemblance**
-   to any general attack category.
-   Only name a category if the resemblance is strong and unambiguous.
-   Otherwise, explicitly state:
-   "Insufficient evidence to suggest a known attack pattern."
+State whether there is no or only weak resemblance to a known attack.
+Only name an attack category if evidence is strong.
+Otherwise say: "Insufficient evidence to suggest a known attack pattern."
 
 5. Most informative feature:
-   Name the single most informative feature or observation.
+The single most informative feature.
 
-Important constraints:
+Rules:
 - Be concise
-- Do not use tables
-- Do not exceed 6 short bullet points total
+- No tables
 - Avoid definitive conclusions
-- Avoid naming specific attacks unless clearly justified
-- Prefer stating insufficient or weak evidence over naming an attack category
 
 Network flow features:
 {features_json}
 """
 
+
 # -------------------------------------------------
-# Layer 2 – Augmented Prompt
+# Layer 2 – Augmented Prompt OR Expert Augmented Prompt
 # -------------------------------------------------
 def build_augmented_prompt(
     observable_features: dict,
     ipqs_fraud_score: int | None,
     vt_malicious_count: int | None,
-    abuse_score : int | None
+    abuse_score: int | None,
+    assumption: str | None = None
 ) -> str:
 
     protocol_num = observable_features.get("PROTOCOL_NUM")
     protocol_explanation = explain_protocol(protocol_num)
 
     autoencoder_score = observable_features.get("score_Autoencoder")
+
     features_json = json.dumps(observable_features, indent=2)
 
-    external_context = f"""
-Note:
-Some features originate from external IP reputation services 
-(e.g., VirusTotal, IPQualityScore, AbuseIPDB).
-These signals are contextual and probabilistic, 
-and do NOT constitute definitive evidence of malicious activity.
+    if assumption == "malicious":
+        assumption_text = """
+Assume the network flow is malicious.
+Your task is to construct the strongest possible explanation supporting this hypothesis based only on the observable features.
+"""
+    elif assumption == "benign":
+        assumption_text = """
+Assume the network flow is benign.
+Your task is to construct the strongest possible explanation supporting this hypothesis based only on the observable features.
+"""
+    else:
+        assumption_text = ""
 
-External IP reputation signals:
+    # הופיע רק במצב baseline
+    if assumption is None:
+        neutrality_text = "Do not assume the traffic is malicious or benign."
+    else:
+        neutrality_text = ""
+
+    external_context = f"""
+External IP reputation signals (context only, not definitive evidence):
+
 - IPQualityScore fraud score: {ipqs_fraud_score}
 - VirusTotal malicious detections: {vt_malicious_count}
 - AbuseIPDB confidence score: {abuse_score}
 """
+
     feature_context = f"""
 Feature context:
 
-Protocol information:
-- PROTOCOL_NUM = {protocol_num}
-- {protocol_explanation}
+Protocol:
+PROTOCOL_NUM = {protocol_num} ({protocol_explanation})
 
 Autoencoder anomaly score:
-- score_Autoencoder = {autoencoder_score}
-
-The autoencoder score represents how anomalous the flow is according to an
-unsupervised anomaly detection model.
-Higher values indicate that the flow deviates more from normal traffic patterns.
+score_Autoencoder = {autoencoder_score} (higher = more anomalous)
 """
 
     return f"""
-You are a cybersecurity analyst.
+You are a cybersecurity analyst reviewing a network flow.
 
-The following network flow was flagged as anomalous by an automated detection system.
-This does NOT imply confirmed malicious activity.
+{assumption_text}
+
+The flow was flagged as anomalous by an automated detection system, but this does NOT imply confirmed malicious activity.
 
 {external_context}
 
 {feature_context}
 
-You are provided with observable network flow features.
-Do NOT assume the traffic is malicious or benign.
+You are given only observable NetFlow features.
+{neutrality_text}
 
-Your task is to provide a concise, cautious assessment.
+Respond ONLY in the following structure:
 
-Respond in the following structure only:
-
-1. Likelihood (0–1):
-   A single numeric value.
+1. Malicious likelihood (0–1):
+A single numeric value.
 
 2. Main reasons:
-   2–3 short bullet points explaining the assessment.
+2–3 short bullet points explaining the assessment.
 
 3. Suspicious feature combination:
-   Name a small group of features that are individually normal,
-   but suspicious when considered together.
+Features that are individually normal but suspicious together.
 
 4. Resemblance to known attack behavior:
-   State whether the behavior shows **no resemblance or only weak resemblance**
-   to any general attack category.
-   Only name a category if the resemblance is strong and unambiguous.
-   Otherwise, explicitly state:
-   "Insufficient evidence to suggest a known attack pattern."
+State whether there is no or only weak resemblance to a known attack.
+Only name an attack category if evidence is strong.
+Otherwise say: "Insufficient evidence to suggest a known attack pattern."
 
 5. Most informative feature:
-   Name the single most informative feature or observation.
+The single most informative feature.
 
-Important constraints:
+Rules:
 - Be concise
-- Do not use tables
-- Do not exceed 6 short bullet points total
+- No tables
 - Avoid definitive conclusions
-- Avoid naming specific attacks unless clearly justified
-- Prefer stating insufficient or weak evidence over naming an attack category
 
 Network flow features:
-{features_json}
-"""
-
-def build_expert_prompt_augmented(
-    observable_features,
-    assumption,
-    ipqs_fraud_score,
-    vt_malicious_count,
-    abuse_score
-):
-
-    protocol_num = observable_features.get("PROTOCOL_NUM")
-    protocol_explanation = explain_protocol(protocol_num)
-
-    autoencoder_score = observable_features.get("score_Autoencoder")
-
-    features_json = json.dumps(observable_features, indent=2)
-
-    if assumption == "malicious":
-        role_text = "Assume the network flow is malicious."
-    else:
-        role_text = "Assume the network flow is benign."
-
-    return f"""
-You are a cybersecurity analyst.
-
-{role_text}
-
-External IP reputation signals:
-
-- IPQualityScore fraud score: {ipqs_fraud_score}
-- VirusTotal malicious detections: {vt_malicious_count}
-- AbuseIPDB confidence score: {abuse_score}
-
-Protocol information:
-PROTOCOL_NUM = {protocol_num}
-{protocol_explanation}
-
-Autoencoder anomaly score:
-score_Autoencoder = {autoencoder_score}
-
-The autoencoder score indicates how anomalous the flow is according to an unsupervised model.
-
-Respond strictly:
-
-1. Likelihood (0–1):
-   A single numeric value.
-2. Main reasons (2–3 bullet points)
-3. Most informative feature
-
-Network flow:
-{features_json}
-"""
-
-# -------------------------------------------------
-# Consensus – Expert Prompt
-# -------------------------------------------------
-def build_expert_prompt(observable_features: dict, assumption: str) -> str:
-    import json
-
-    features_json = json.dumps(observable_features, indent=2)
-
-    if assumption == "malicious":
-        role_text = """
-Assume the network flow is malicious.
-Your role is to build the strongest possible argument that it represents malicious activity.
-"""
-    elif assumption == "benign":
-        role_text = """
-Assume the network flow is benign.
-Your role is to build the strongest possible argument that it represents normal, legitimate traffic.
-"""
-    else:
-        raise ValueError("Assumption must be 'malicious' or 'benign'")
-
-    return f"""
-You are a cybersecurity analyst.
-
-{role_text}
-
-Important:
-Likelihood (0–1) must represent:
-the likelihood that the flow is malicious.
-
-Even if you assume it is benign, you must still provide
-a likelihood estimate of malicious activity.
-
-Base your reasoning strictly on the observable features.
-Avoid speculation.
-Be concise.
-
-Respond strictly in this structure:
-
-1. Likelihood (0–1) – likelihood that the flow is malicious
-   A single numeric value.
-2. Main reasons (2–3 bullet points)
-3. Most informative feature
-
-Network flow:
 {features_json}
 """
 
@@ -463,58 +369,88 @@ Network flow:
 def build_consensus_prompt(
     observable_features: dict,
     attack_explanation: str,
-    benign_explanation: str
+    benign_explanation: str,
+    ipqs_fraud_score: int | None = None,
+    vt_malicious_count: int | None = None,
+    abuse_score: int | None = None,
+    use_context: bool = False
 ) -> str:
-    import json
 
     features_json = json.dumps(observable_features, indent=2)
+
+    cti_block = ""
+    feature_context = ""
+
+    if use_context:
+
+        protocol_num = observable_features.get("PROTOCOL_NUM")
+        protocol_explanation = explain_protocol(protocol_num)
+
+        autoencoder_score = observable_features.get("score_Autoencoder")
+
+        cti_block = f"""
+External IP reputation signals (context only):
+
+- IPQualityScore fraud score: {ipqs_fraud_score}
+- VirusTotal malicious detections: {vt_malicious_count}
+- AbuseIPDB confidence score: {abuse_score}
+"""
+
+        feature_context = f"""
+Feature context:
+
+Protocol:
+PROTOCOL_NUM = {protocol_num} ({protocol_explanation})
+
+Autoencoder anomaly score:
+score_Autoencoder = {autoencoder_score} (higher = more anomalous)
+"""
 
     return f"""
 You are a senior cybersecurity analyst acting as a neutral judge.
 
 You are given:
-
 1) Network flow features
 2) Expert A opinion (assumes malicious)
 3) Expert B opinion (assumes benign)
 
-Your task:
-
-- Compare both explanations
-- Evaluate which is more logically grounded in the observable features
-- Identify weak or unsupported reasoning
-- Provide a final balanced decision
+Your task is to compare both explanations and determine which is better supported by the evidence.
 
 Do NOT assume either expert is correct.
-Prefer reasoning that is strictly feature-based.
+Prefer reasoning grounded in the provided evidence.
+Identify unsupported assumptions or weak reasoning.
 
-Respond strictly in this structure:
+Respond ONLY in the following structure:
 
-1. Likelihood (0–1).
-   A single numeric value.
-2. Which expert is more convincing (A or B or Balanced)
-3. Key justification (2–3 bullet points)
-4. Most decisive feature
+1. Malicious likelihood (0–1):
+A single numeric value.
+
+2. Which expert is more convincing:
+A / B / Balanced
+
+3. Key justification:
+2–3 short bullet points.
+
+4. Most decisive feature:
+The feature that most influenced your decision.
 
 --------------------------------------------------
 
-Network flow:
+Network flow features:
 {features_json}
 
+{cti_block}
+
+{feature_context}
+
 --------------------------------------------------
 
-Expert A (Malicious assumption):
+Expert A (malicious assumption):
 {attack_explanation}
 
 --------------------------------------------------
 
-Expert B (Benign assumption):
+Expert B (benign assumption):
 {benign_explanation}
 """
 
-import tiktoken
-
-def count_llm_tokens(text: str, model: str = "gpt-4o-mini") -> int:
-    encoding = tiktoken.encoding_for_model(model)
-    tokens = encoding.encode(text)
-    return len(tokens)
