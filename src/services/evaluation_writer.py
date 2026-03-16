@@ -3,7 +3,6 @@ import re
 from pathlib import Path
 from src.utils.llm_utils import extract_llm_likelihood
 
-EVAL_FILE = Path("outputs/evaluation.csv")
 
 HEADER = [
     "ID",
@@ -97,23 +96,23 @@ def normalize_result(r: dict, layer: str, mode: str) -> dict:
     }
 
 
-def ensure_csv_exists():
+def ensure_csv_exists(csv_path: Path):
 
-    if not EVAL_FILE.exists() or EVAL_FILE.stat().st_size == 0:
+    if not csv_path.exists() or csv_path.stat().st_size == 0:
 
-        EVAL_FILE.parent.mkdir(parents=True, exist_ok=True)
+        csv_path.parent.mkdir(parents=True, exist_ok=True)
 
-        with open(EVAL_FILE, "w", newline="", encoding="utf-8") as f:
+        with open(csv_path, "w", newline="", encoding="utf-8") as f:
 
             writer = csv.writer(f)
             writer.writerow(HEADER)
 
 
-def append_results(results, rows, layer, mode):
+def append_results(results, rows, layer, mode, csv_path):
 
-    ensure_csv_exists()
+    ensure_csv_exists(csv_path)
 
-    with open(EVAL_FILE, "a", newline="", encoding="utf-8") as f:
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
 
         writer = csv.writer(f)
 

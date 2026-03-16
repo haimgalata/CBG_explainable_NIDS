@@ -13,7 +13,9 @@ RUN_ID = datetime.now().strftime("%Y-%m-%d_%H-%M")
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 CSV_PATH = PROJECT_ROOT / "data" / "raw" / "may_hamalka80-85.csv"
+
 BASE_OUTPUT_DIR = PROJECT_ROOT / "outputs" / "runs"
+EXPERIMENTS_DIR = PROJECT_ROOT / "outputs" / "experiments"
 
 
 def main():
@@ -95,21 +97,30 @@ def main():
         results = run_baseline_layer(rows_to_explain, run_output_dir)
 
     elif args.layer == "augmented":
-        results = run_augmented_layer(rows_to_explain, run_output_dir, reputation_mode=args.mode)
+        results = run_augmented_layer(
+            rows_to_explain,
+            run_output_dir,
+            reputation_mode=args.mode
+        )
 
     elif args.layer == "consensus":
-        results = run_consensus_layer(rows_to_explain, run_output_dir, use_augmentation=(args.consensus_mode == "augmented"), reputation_mode=args.mode)
+        results = run_consensus_layer(
+            rows_to_explain,
+            run_output_dir,
+            use_augmentation=(args.consensus_mode == "augmented"),
+            reputation_mode=args.mode
+        )
 
     else:
         raise ValueError("Invalid layer selected")
 
-    # ---- Save results ----
+    # ---- Save results JSON ----
     output_file = run_output_dir / "results.json"
 
     with open(output_file, "w", encoding="utf-8") as f:
         json.dump(results, f, indent=2, ensure_ascii=False)
 
-    # Determine experiment layer label
+    # ---- Determine experiment layer label ----
     if args.layer == "consensus":
         if args.consensus_mode == "baseline":
             experiment_layer = "consensus_baseline"
@@ -118,9 +129,31 @@ def main():
     else:
         experiment_layer = args.layer
 
-    append_results(results, rows_to_explain, experiment_layer, args.mode)
+    # ---- Create experiments path ----
+    rows_folder = f"rows_{args.start}_{args.end - 1}"
+
+    experiment_output_dir = (
+            EXPERIMENTS_DIR
+            / experiment_layer
+            / args.mode
+            / rows_folder
+    )
+
+    experiment_output_dir.mkdir(parents=True, exist_ok=True)
+
+    csv_path = experiment_output_dir / "evaluation.csv"
+
+    # ---- Save evaluation CSV ----
+    append_results(
+        results,
+        rows_to_explain,
+        experiment_layer,
+        args.mode,
+        csv_path
+    )
 
     print(f"\nResults saved to: {output_file}")
+    print(f"Evaluation CSV: {csv_path}")
     print("Done.\n")
 
 

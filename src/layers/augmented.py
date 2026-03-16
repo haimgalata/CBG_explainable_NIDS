@@ -89,7 +89,7 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
         results.append({
             "flow_index": idx,
             "timestamp": datetime.now().isoformat(),
-            "layer": "augmented",
+            "layer": "augmented_mode_real",
             "model": llm.__class__.__name__,
             "llm_latency_seconds": round(latency, 3),
             "observable_features": observable,
