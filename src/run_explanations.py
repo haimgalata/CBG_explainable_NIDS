@@ -141,7 +141,7 @@ def main():
 
     experiment_output_dir.mkdir(parents=True, exist_ok=True)
 
-    csv_path = experiment_output_dir / "evaluation.csv"
+    csv_path = experiment_output_dir / f"evaluation_{RUN_ID}.csv"
 
     # ---- Save evaluation CSV ----
     append_results(

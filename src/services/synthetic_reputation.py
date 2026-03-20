@@ -20,13 +20,25 @@ ATTACK_PROFILES = {
 }
 
 
-def generate_random_attack_profile():
-    category = random.choice(list(ATTACK_PROFILES.keys()))
-    profile = ATTACK_PROFILES[category]
+def generate_random_attack_profile(label: int):
 
-    return {
-        "category": category,
-        "abuse_score": random.randint(*profile["abuse_score"]),
-        "vt_malicious_count": random.randint(*profile["vt_malicious_count"]),
-        "ipqs_fraud_score": random.randint(*profile["ipqs_fraud_score"]),
-    }
+    # אם תקיפה → תן CTI אמיתי
+    if label == 1:
+        category = random.choice(list(ATTACK_PROFILES.keys()))
+        profile = ATTACK_PROFILES[category]
+
+        return {
+            "category": category,
+            "abuse_score": random.randint(*profile["abuse_score"]),
+            "vt_malicious_count": random.randint(*profile["vt_malicious_count"]),
+            "ipqs_fraud_score": random.randint(*profile["ipqs_fraud_score"]),
+        }
+
+    # אם benign → אפסים
+    else:
+        return {
+            "category": "benign",
+            "abuse_score": 0,
+            "vt_malicious_count": 0,
+            "ipqs_fraud_score": 0,
+        }

@@ -228,42 +228,53 @@ Your task is to construct the strongest possible explanation supporting this hyp
         neutrality_text = ""
 
     return f"""
-You are a cybersecurity analyst reviewing a network flow.
+    You are a cybersecurity analyst reviewing a network flow.
 
-{assumption_text}
+    {assumption_text}
 
-The flow was flagged as anomalous by an automated system, but this does NOT imply confirmed malicious activity.
+    The flow was flagged as anomalous by an automated system, but this does NOT imply confirmed malicious activity.
 
-You are given only observable NetFlow features.
-{neutrality_text}
+    You are given only observable NetFlow features.
+    {neutrality_text}
 
-Respond ONLY in the following structure:
+    Respond ONLY in the following structure:
 
-1. Malicious likelihood (0–1):
-A single numeric value.
+    1. Malicious likelihood (0–1):
+    A single numeric value.
 
-2. Main reasons:
-2–3 short bullet points explaining the assessment.
+    Scoring guidelines:
+    - 0.8 – 1.0 → Strong evidence of malicious activity (multiple suspicious indicators)
+    - 0.6 – 0.8 → Moderate evidence
+    - 0.3 – 0.6 → Weak or uncertain evidence
+    - 0.0 – 0.3 → Likely benign
 
-3. Suspicious feature combination:
-Features that are individually normal but suspicious together.
+    Important:
+    - Be decisive when evidence is strong
+    - Avoid clustering around 0.5 unless truly uncertain
+    - Use the full range of the scale
 
-4. Resemblance to known attack behavior:
-State whether there is no or only weak resemblance to a known attack.
-Only name an attack category if evidence is strong.
-Otherwise say: "Insufficient evidence to suggest a known attack pattern."
+    2. Main reasons:
+    2–3 short bullet points explaining the assessment.
 
-5. Most informative feature:
-The single most informative feature.
+    3. Suspicious feature combination:
+    Features that are individually normal but suspicious together.
 
-Rules:
-- Be concise
-- No tables
-- Avoid definitive conclusions
+    4. Resemblance to known attack behavior:
+    State whether there is no or only weak resemblance to a known attack.
+    Only name an attack category if evidence is strong.
+    Otherwise say: "Insufficient evidence to suggest a known attack pattern."
 
-Network flow features:
-{features_json}
-"""
+    5. Most informative feature:
+    The single most informative feature.
+
+    Rules:
+    - Be concise
+    - No tables
+    - Avoid overconfidence, but be decisive when evidence is strong
+
+    Network flow features:
+    {features_json}
+    """
 
 
 # -------------------------------------------------
@@ -297,14 +308,16 @@ Your task is to construct the strongest possible explanation supporting this hyp
     else:
         assumption_text = ""
 
-    # הופיע רק במצב baseline
     if assumption is None:
         neutrality_text = "Do not assume the traffic is malicious or benign."
     else:
         neutrality_text = ""
 
     external_context = f"""
-External IP reputation signals (context only, not definitive evidence):
+External IP reputation signals:
+
+These signals provide supporting evidence and should influence your assessment.
+High values across multiple sources significantly increase the likelihood of malicious activity.
 
 - IPQualityScore fraud score: {ipqs_fraud_score}
 - VirusTotal malicious detections: {vt_malicious_count}
@@ -340,6 +353,18 @@ Respond ONLY in the following structure:
 1. Malicious likelihood (0–1):
 A single numeric value.
 
+Scoring guidelines:
+- 0.8 – 1.0 → Strong evidence of malicious activity (especially if multiple CTI sources are high)
+- 0.6 – 0.8 → Moderate evidence (some suspicious features)
+- 0.3 – 0.6 → Weak evidence
+- 0.0 – 0.3 → Likely benign 
+
+Important:
+- Use CTI signals as supporting evidence, not the only factor
+- Combine CTI with flow behavior
+- Be decisive when evidence is strong
+
+
 2. Main reasons:
 2–3 short bullet points explaining the assessment.
 
@@ -351,13 +376,11 @@ State whether there is no or only weak resemblance to a known attack.
 Only name an attack category if evidence is strong.
 Otherwise say: "Insufficient evidence to suggest a known attack pattern."
 
-5. Most informative feature:
-The single most informative feature.
 
 Rules:
 - Be concise
 - No tables
-- Avoid definitive conclusions
+- Avoid overconfidence, but be decisive when multiple signals align
 
 Network flow features:
 {features_json}
@@ -389,7 +412,10 @@ def build_consensus_prompt(
         autoencoder_score = observable_features.get("score_Autoencoder")
 
         cti_block = f"""
-External IP reputation signals (context only):
+External IP reputation signals:
+
+These signals provide supporting evidence and should influence your decision.
+Consistent high values across multiple sources strongly indicate malicious activity.
 
 - IPQualityScore fraud score: {ipqs_fraud_score}
 - VirusTotal malicious detections: {vt_malicious_count}
@@ -407,14 +433,16 @@ score_Autoencoder = {autoencoder_score} (higher = more anomalous)
 """
 
     return f"""
-You are a senior cybersecurity analyst acting as a neutral judge.
+You are a senior cybersecurity analyst acting as a strict and decisive judge.
 
 You are given:
 1) Network flow features
-2) Expert A opinion (assumes malicious)
-3) Expert B opinion (assumes benign)
+2) Expert A opinion 
+3) Expert B opinion 
 
 Your task is to compare both explanations and determine which is better supported by the evidence.
+
+You MUST make a clear decision when evidence favors one side.
 
 Do NOT assume either expert is correct.
 Prefer reasoning grounded in the provided evidence.
@@ -425,16 +453,36 @@ Respond ONLY in the following structure:
 1. Malicious likelihood (0–1):
 A single numeric value.
 
-2. Which expert is more convincing:
-A / B / Balanced
+2. Which expert is more accurate:
+A / B 
 
 3. Key justification:
 2–3 short bullet points.
 
-4. Most decisive feature:
-The feature that most influenced your decision.
+4. Confidence (0–1):
+A single numeric value between 0 and 1 representing how confident you are in your decision.
 
 --------------------------------------------------
+
+Scoring guidelines:
+- 0.8 – 1.0 → Strong evidence supporting malicious interpretation (Expert A correct)
+- 0.6 – 0.8 → Moderate support for malicious
+- 0.3 – 0.6 → Mixed or uncertain evidence
+- 0.0 – 0.3 → Strong evidence supporting benign interpretation (Expert B correct)
+
+Important:
+- Do NOT default to the middle (0.5)
+- If one explanation is clearly stronger → push the score toward extremes
+- Use the full range of the scale
+- Base your decision on evidence, not wording quality
+
+Decision rules:
+- If Expert A is clearly better supported → score above 0.7
+- If Expert B is clearly better supported → score below 0.3
+- If both are weak or equally supported → stay in mid range
+
+--------------------------------------------------
+
 
 Network flow features:
 {features_json}
@@ -454,3 +502,4 @@ Expert B (benign assumption):
 {benign_explanation}
 """
 
+# להוסיף חלוקה על flow זדוני לשלוח ל LLM 3 API נפרדים: ב1 מצאתי מידע לגבי הבכל השירותים, 2 מצאתי רק בחלק ובחלק הוא מפויע 0, 3 לא מצאתי כלום

@@ -14,7 +14,9 @@ HEADER = [
     "IP_Reputation_Found",
     "Latency_Total",
     "Tokens_Total",
-    "Length_Total"
+    "Length_Total",
+    "Judge_Confidence",
+    "LLM_Explanation"
 ]
 
 
@@ -83,6 +85,16 @@ def normalize_result(r: dict, layer: str, mode: str) -> dict:
             or 0
         )
 
+    judge_confidence = r.get("decision_llm_confidence")
+
+    explanation = (
+            r.get("final_decision")  # consensus
+            or r.get("explanation")  # augmented / baseline
+            or ""
+    )
+
+    explanation = re.sub(r"\s+", " ", explanation)
+
     return {
         "ID": flow_id,
         "Layer": layer,
@@ -92,8 +104,11 @@ def normalize_result(r: dict, layer: str, mode: str) -> dict:
         "IP_Reputation_Found": r.get("ip_reputation_found", 0),
         "Latency_Total": latency,
         "Tokens_Total": tokens,
-        "Length_Total": length
+        "Length_Total": length,
+        "Judge_Confidence": judge_confidence,
+        "LLM_Explanation": explanation,
     }
+
 
 
 def ensure_csv_exists(csv_path: Path):
@@ -132,5 +147,7 @@ def append_results(results, rows, layer, mode, csv_path):
                 row["IP_Reputation_Found"],
                 row["Latency_Total"],
                 row["Tokens_Total"],
-                row["Length_Total"]
+                row["Length_Total"],
+                row["Judge_Confidence"],
+                row["LLM_Explanation"]
             ])

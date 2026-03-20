@@ -148,15 +148,21 @@ md/   (per-flow explanations)
 ---
 ---
 
-## TODO
+## 🔧 TODO / Future Work
 
+### 🧠 Synthetic CTI Improvements
+- [ ] Improve synthetic CTI realism by introducing multiple intelligence scenarios:
+  - **Full CTI coverage** – signals available across all services (IPQS, VirusTotal, AbuseIPDB)
+  - **Partial CTI coverage** – signals available only from some services (others return 0)
+  - **No CTI available** – simulate missing intelligence / false negatives
+
+### 📊 Evaluation & Outputs
 - [x] Create evaluation CSV  
-      (ID, Actual_Label, LLM_Prediction, Label, IP_Reputation_Found, Latency, Tokens, Length)
+  *(ID, Actual_Label, LLM_Prediction, Label, IP_Reputation_Found, Latency, Tokens, Length, LLM_Explanation)*
 
-- [ ] Review DDoS article and update synthetic CTI generation logic
-
-- [ ] Connect the explanation pipeline to the previous stage of the project  
-      (anomaly detection / NetFlow detection pipeline)
+### 🔗 Pipeline Integration
+- [ ] Connect the explanation pipeline to the anomaly detection stage  
+  *(NetFlow / Autoencoder pipeline)*
 
 ---
 

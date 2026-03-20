@@ -10,7 +10,7 @@ from src.services.abuseipdb_service import AbuseIPDBService
 from src.services.synthetic_reputation import generate_random_attack_profile
 from src.config import IPQS_API_KEY, VT_API_KEY, ABUSE_IPDB_API_KEY
 from src.md_writer import write_flow_md
-from src.utils.llm_utils import extract_llm_likelihood, count_llm_tokens
+from src.utils.llm_utils import extract_llm_likelihood, count_llm_tokens, call_llm_with_retry
 
 def run_augmented_layer(rows, run_output_dir, reputation_mode):
     #llm = GeminiClient()
@@ -37,7 +37,8 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
 
         elif reputation_mode == "synthetic":
 
-            profile = generate_random_attack_profile()
+            true_label = int(row["Label"])
+            profile = generate_random_attack_profile(true_label)
 
             ipqs_fraud_score = profile["ipqs_fraud_score"]
             vt_malicious_count = profile["vt_malicious_count"]
@@ -66,12 +67,23 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
         )
 
         start_time = time.perf_counter()
-        explanation = llm.explain(prompt)
+
+        explanation = call_llm_with_retry(lambda: llm.explain(prompt))
+
+        if explanation is None:
+            print(f"[ERROR] LLM failed on flow {idx}, ID={observable.get('ID')}")
+
+            explanation = "Likelihood: -1\n\nLLM call failed."
+
         end_time = time.perf_counter()
 
         latency = end_time - start_time
 
         llm_likelihood = extract_llm_likelihood(explanation)
+
+        if llm_likelihood is None:
+            llm_likelihood = -1
+
         llm_response_length = len(explanation)
         llm_response_tokens = count_llm_tokens(explanation)
         autoencoder_score = observable.get("score_Autoencoder")
@@ -89,7 +101,7 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
         results.append({
             "flow_index": idx,
             "timestamp": datetime.now().isoformat(),
-            "layer": "augmented_mode_real",
+            "layer": f"augmented_mode_{reputation_mode}",
             "model": llm.__class__.__name__,
             "llm_latency_seconds": round(latency, 3),
             "observable_features": observable,
