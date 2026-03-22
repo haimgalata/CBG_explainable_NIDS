@@ -29,7 +29,7 @@ def normalize_result(r: dict, layer: str, mode: str) -> dict:
     likelihood = r.get("llm_likelihood")
 
     if likelihood is None:
-        likelihood = r.get("Decision_llm_likelihood")
+        likelihood = r.get("decision_llm_likelihood") or r.get("Decision_llm_likelihood")
 
     if likelihood is None:
         text = (
@@ -67,6 +67,7 @@ def normalize_result(r: dict, layer: str, mode: str) -> dict:
 
         tokens = (
             r.get("llm_response_tokens")
+            or r.get("decision_llm_response_tokens")
             or r.get("Decision_llm_response_tokens")
             or 0
         )
@@ -81,6 +82,7 @@ def normalize_result(r: dict, layer: str, mode: str) -> dict:
 
         length = (
             r.get("llm_response_length")
+            or r.get("decision_llm_response_length")
             or r.get("Decision_llm_response_length")
             or 0
         )
@@ -124,19 +126,14 @@ def ensure_csv_exists(csv_path: Path):
 
 
 def append_results(results, rows, layer, mode, csv_path):
-
+    """Append multiple results to evaluation CSV (batch)."""
     ensure_csv_exists(csv_path)
 
     with open(csv_path, "a", newline="", encoding="utf-8") as f:
-
         writer = csv.writer(f)
-
         for r, row_df in zip(results, rows):
-
             true_label = int(row_df["Label"])
-
             row = normalize_result(r, layer, mode)
-
             writer.writerow([
                 row["ID"],
                 row["Layer"],
@@ -151,3 +148,26 @@ def append_results(results, rows, layer, mode, csv_path):
                 row["Judge_Confidence"],
                 row["LLM_Explanation"]
             ])
+
+
+def append_single_result(result: dict, row_df, layer: str, mode: str, csv_path: Path) -> None:
+    """Append a single result incrementally (for per-flow saving)."""
+    ensure_csv_exists(csv_path)
+    true_label = int(row_df["Label"])
+    row = normalize_result(result, layer, mode)
+    with open(csv_path, "a", newline="", encoding="utf-8") as f:
+        writer = csv.writer(f)
+        writer.writerow([
+            row["ID"],
+            row["Layer"],
+            row["Mode"],
+            row["Score_Autoencoder"],
+            row["LLM_Prediction"],
+            true_label,
+            row["IP_Reputation_Found"],
+            row["Latency_Total"],
+            row["Tokens_Total"],
+            row["Length_Total"],
+            row["Judge_Confidence"],
+            row["LLM_Explanation"]
+        ])

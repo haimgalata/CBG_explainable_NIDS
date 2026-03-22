@@ -1,5 +1,7 @@
+import logging
 import time
 from datetime import datetime
+from typing import Callable
 
 from src.prompt_builder import extract_observable_features, build_augmented_prompt
 from src.clients.gpt_client import GPTClient
@@ -12,7 +14,10 @@ from src.config import IPQS_API_KEY, VT_API_KEY, ABUSE_IPDB_API_KEY
 from src.md_writer import write_flow_md
 from src.utils.llm_utils import extract_llm_likelihood, count_llm_tokens, call_llm_with_retry
 
-def run_augmented_layer(rows, run_output_dir, reputation_mode):
+logger = logging.getLogger(__name__)
+
+
+def run_augmented_layer(rows, run_output_dir, reputation_mode, on_flow_complete: Callable[[dict, object, int], None] | None = None, start_index: int = 0):
     #llm = GeminiClient()
     llm = GPTClient()
 
@@ -23,7 +28,8 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
 
     results = []
 
-    for idx, row in enumerate(rows, start=1):
+    for i, row in enumerate(rows):
+        idx = start_index + i + 1
 
         observable = extract_observable_features(row)
         dst_ip = row["IP_DST_ADDR"]
@@ -98,7 +104,7 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
             abuse_score=abuse_score
         )
 
-        results.append({
+        result = {
             "flow_index": idx,
             "timestamp": datetime.now().isoformat(),
             "layer": f"augmented_mode_{reputation_mode}",
@@ -115,6 +121,9 @@ def run_augmented_layer(rows, run_output_dir, reputation_mode):
             "llm_response_length": llm_response_length,
             "llm_response_tokens": llm_response_tokens,
             "explanation": explanation
-        })
+        }
+        results.append(result)
+        if on_flow_complete:
+            on_flow_complete(result, row, idx)
 
     return results

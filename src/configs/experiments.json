@@ -1,0 +1,40 @@
+{
+  "input_csv": "data/raw/may_hamalka80-85.csv",
+  "output_dir": "outputs",
+  "runs": [
+    {
+      "name": "baseline_10_15",
+      "enabled": true,
+      "layer": "baseline",
+      "mode": "default",
+      "start": 10,
+      "end": 15
+    },
+    {
+      "name": "augmented_synthetic_0_2",
+      "enabled": true,
+      "layer": "augmented",
+      "mode": "synthetic",
+      "start": 0,
+      "end": 2
+    },
+    {
+      "name": "consensus_baseline_0_2",
+      "enabled": false,
+      "layer": "consensus",
+      "consensus_mode": "baseline",
+      "mode": "default",
+      "start": 0,
+      "end": 2
+    },
+    {
+      "name": "consensus_augmented_synthetic_0_2",
+      "enabled": false,
+      "layer": "consensus",
+      "consensus_mode": "augmented",
+      "mode": "synthetic",
+      "start": 0,
+      "end": 2
+    }
+  ]
+}

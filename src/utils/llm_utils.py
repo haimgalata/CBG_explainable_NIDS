@@ -1,6 +1,9 @@
+import logging
 import re
 import tiktoken
 import time
+
+logger = logging.getLogger(__name__)
 
 
 def extract_llm_likelihood(text: str):
@@ -38,8 +41,8 @@ def extract_llm_confidence(response: str) -> float | None:
         )
         if match:
             return float(match.group(1))
-    except:
-        pass
+    except (ValueError, TypeError) as e:
+        logger.debug("Could not parse confidence: %s", e)
 
     return None
 
@@ -60,25 +63,36 @@ def count_llm_tokens(text: str, model: str = "gpt-4o-mini") -> int:
 
 def call_llm_with_retry(call_function, max_retries=5):
     """
-    Retry wrapper for LLM calls (handles rate limits like 429).
+    Retry wrapper for LLM calls (handles rate limits like 429, 503, timeouts).
     """
-
+    last_error = None
     for attempt in range(max_retries):
         try:
             return call_function()
-
         except Exception as e:
+            last_error = e
             error_str = str(e)
-
-            if "429" in error_str or "rate limit" in error_str.lower():
-                wait_time = 2 ** attempt
-                print(f"[Retry {attempt+1}] Rate limited. Waiting {wait_time}s...")
+            is_retryable = (
+                "429" in error_str
+                or "rate limit" in error_str.lower()
+                or "503" in error_str
+                or "timeout" in error_str.lower()
+            )
+            if is_retryable and attempt < max_retries - 1:
+                wait_time = min(2 ** attempt, 60)
+                logger.warning(
+                    "LLM call failed (attempt %s/%s): %s. Retrying in %ss...",
+                    attempt + 1,
+                    max_retries,
+                    error_str[:100],
+                    wait_time,
+                )
                 time.sleep(wait_time)
             else:
-                print(f"[Error] {e}")
-                raise e
+                logger.error("LLM call failed: %s", e)
+                raise
 
-    print("[Failed] Max retries reached.")
+    logger.error("Max retries reached. Last error: %s", last_error)
     return None
 
 # simple test

@@ -1,3 +1,14 @@
+"""
+Synthetic CTI (Cyber Threat Intelligence) for experiment design.
+
+Current: Binary (attack=high scores, benign=zeros). Random attack category.
+
+Improvement ideas (see EXPERIMENTS.md):
+- full_cti: All 3 services return signals (like current attack profile)
+- partial_cti: Only 1-2 services return signals, others 0 (realistic incomplete intel)
+- no_cti: All zeros even for attacks (simulate false negative / missing intel)
+- severity_levels: Low/medium/high attack severity with corresponding score ranges
+"""
 import random
 
 

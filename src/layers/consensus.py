@@ -1,5 +1,7 @@
+import logging
 import time
 from datetime import datetime
+from typing import Callable
 
 from src.prompt_builder import (
     extract_observable_features,
@@ -22,8 +24,10 @@ from src.config import IPQS_API_KEY, VT_API_KEY, ABUSE_IPDB_API_KEY
 
 from src.utils.llm_utils import extract_llm_likelihood, count_llm_tokens, call_llm_with_retry, extract_llm_confidence
 
+logger = logging.getLogger(__name__)
 
-def run_consensus_layer(rows, run_output_dir, use_augmentation=False, reputation_mode="default"):
+
+def run_consensus_layer(rows, run_output_dir, use_augmentation=False, reputation_mode="default", on_flow_complete: Callable[[dict, object, int], None] | None = None, start_index: int = 0):
 
     # llm = GeminiClient()
     llm = GPTClient()
@@ -35,7 +39,8 @@ def run_consensus_layer(rows, run_output_dir, use_augmentation=False, reputation
         vt_service = VirusTotalService(api_key=VT_API_KEY)
         abuse_service = AbuseIPDBService(api_key=ABUSE_IPDB_API_KEY)
 
-    for idx, row in enumerate(rows, start=1):
+    for i, row in enumerate(rows):
+        idx = start_index + i + 1
 
         dst_ip = row["IP_DST_ADDR"]
 
@@ -101,7 +106,7 @@ def run_consensus_layer(rows, run_output_dir, use_augmentation=False, reputation
             )
 
         start_time = time.perf_counter()
-        explanation_attack = llm.explain(prompt_attack)
+        explanation_attack = call_llm_with_retry(lambda: llm.explain(prompt_attack))
 
         if explanation_attack is None:
             print(f"[ERROR] Attack LLM failed on flow {idx}, ID={observable.get('ID')}")
@@ -139,7 +144,7 @@ def run_consensus_layer(rows, run_output_dir, use_augmentation=False, reputation
             )
 
         start_time = time.perf_counter()
-        explanation_benign = llm.explain(prompt_benign)
+        explanation_benign = call_llm_with_retry(lambda: llm.explain(prompt_benign))
 
         if explanation_benign is None:
             print(f"[ERROR] Benign LLM failed on flow {idx}, ID={observable.get('ID')}")
@@ -168,7 +173,7 @@ def run_consensus_layer(rows, run_output_dir, use_augmentation=False, reputation
         )
 
         start_time = time.perf_counter()
-        final_decision = llm.explain(prompt_judge)
+        final_decision = call_llm_with_retry(lambda: llm.explain(prompt_judge))
         if final_decision is None:
             print(f"[ERROR] Judge LLM failed on flow {idx}, ID={observable.get('ID')}")
             final_decision = "Likelihood: -1\n\nLLM call failed."
@@ -292,5 +297,7 @@ def run_consensus_layer(rows, run_output_dir, use_augmentation=False, reputation
         })
 
         results.append(result)
+        if on_flow_complete:
+            on_flow_complete(result, row, idx)
 
     return results
