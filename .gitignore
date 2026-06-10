@@ -19,3 +19,6 @@ Thumbs.db
 # Data and experiment outputs
 data/
 outputs/runs/
+
+# Personal documentation (not for public repo)
+docs/personal/
